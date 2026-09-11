@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.cookie
+cookie.txt
+examples/demo/out/
+examples/demo/data/

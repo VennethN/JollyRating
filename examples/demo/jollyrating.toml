@@ -1,0 +1,62 @@
+# Demo configuration with synthetic data (see make_fixtures.py).
+# Try it:  python -m jollyrating -c examples/demo/jollyrating.toml compute
+
+title = "JollyBee Rating (demo)"
+timezone = "Asia/Jakarta"
+
+[rating]
+penalty_minutes = 20
+
+[output]
+data_dir = "data"
+out_dir = "out"
+
+[[seasons]]
+name = "Season 2024/25"
+start = 2024-08-01
+
+[[seasons]]
+name = "Season 2025/26"
+start = 2025-08-01
+
+[[contests]]
+id = 700001
+
+[[contests]]
+id = 700002
+
+[[contests]]
+id = 700003
+
+[[contests]]
+id = 700004
+penalty_minutes = 20
+
+[[contests]]
+id = 700005
+
+[[contests]]
+id = 700006
+
+[[contests]]
+id = 700007
+
+[[contests]]
+id = "ioi-practice-1"
+mode = "ioi"
+file = "data/manual/ioi-practice-1.json"
+
+# amara skipped Weekly #3 for an ICPC regional: her first external participation
+# is worth her best actual performance of the season.
+[[external]]
+user = "amara"
+contest = 700003
+note = "ICPC Asia Jakarta Regional"
+
+[[external]]
+user = "bayu"
+contest = 700007
+note = "national training camp"
+
+[users]
+display_names = { chen = "Chen W." }

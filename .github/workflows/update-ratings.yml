@@ -1,0 +1,83 @@
+# Fetches the latest standings from vjudge, recomputes the ratings, commits the
+# results and (optionally) publishes out/ to GitHub Pages.
+#
+# Setup:
+#   1. Fill in jollyrating.toml (at least one [[contests]] entry).
+#   2. For private group contests add a repository secret VJUDGE_COOKIE
+#      (Settings -> Secrets and variables -> Actions) with your vjudge Cookie
+#      header, see README.md.  The cookie expires; refresh it when fetches fail.
+#   3. Optional: Settings -> Pages -> Source: "GitHub Actions", then add a
+#      repository *variable* DEPLOY_PAGES = true.
+name: Update ratings
+
+on:
+  schedule:
+    - cron: "17 18 * * *"   # daily, 18:17 UTC
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+    paths: ["jollyrating.toml", "data/**", "jollyrating/**"]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: update-ratings
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check that contests are configured
+        id: check
+        run: |
+          if grep -Eq '^\s*\[\[contests\]\]' jollyrating.toml; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No [[contests]] in jollyrating.toml yet; nothing to do."
+          fi
+      - uses: actions/setup-python@v5
+        if: steps.check.outputs.configured == 'true'
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+        if: steps.check.outputs.configured == 'true'
+      - name: Fetch standings and compute ratings
+        if: steps.check.outputs.configured == 'true'
+        env:
+          VJUDGE_COOKIE: ${{ secrets.VJUDGE_COOKIE }}
+        run: python -m jollyrating run --ignore-missing
+      - name: Commit results
+        if: steps.check.outputs.configured == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data out
+          if git diff --cached --quiet; then
+            echo "no changes"
+          else
+            git commit -m "Update ratings ($(date -u +%Y-%m-%d))"
+            git push
+          fi
+      - uses: actions/upload-pages-artifact@v3
+        if: steps.check.outputs.configured == 'true' && vars.DEPLOY_PAGES == 'true'
+        with:
+          path: out
+
+  deploy:
+    needs: update
+    if: needs.update.outputs.configured == 'true' && vars.DEPLOY_PAGES == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

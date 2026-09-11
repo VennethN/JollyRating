@@ -1,0 +1,70 @@
+# JollyRating configuration.
+# Every key except [[contests]] is optional. Dates are interpreted in `timezone`.
+
+title = "JollyBee Rating"
+timezone = "UTC"
+
+[vjudge]
+# The group name is the last part of https://vjudge.net/group/<name>.
+# It is only used by `jollyrating discover`.
+# group = "your-group-name"
+# Cookie for private (group) contests: the value of this environment variable is
+# sent as the Cookie header.  See README.md ("Private contests").
+cookie_env = "VJUDGE_COOKIE"
+# Or keep it in a file (git-ignored): cookie_file = ".cookie"
+request_delay = 1.0
+
+[rating]
+# ICPC penalty per rejected submission before the accepted one.
+penalty_minutes = 20
+# Count users who joined the contest but never submitted as participants (score 0).
+include_zero_submission_participants = true
+
+[output]
+data_dir = "data"   # raw vjudge standings are cached in data/contests/<id>.json
+out_dir = "out"     # ratings.json / ratings.csv / ratings.md / index.html
+
+# Seasons, in chronological order. A contest belongs to the last season that
+# started before it (unless the contest sets season = "..." explicitly).
+[[seasons]]
+name = "Season 1"
+start = 2024-08-01
+
+# [[seasons]]
+# name = "Season 2"
+# start = 2025-08-01
+
+# Contests: one table per contest.  For vjudge contests only the id is needed
+# (from https://vjudge.net/contest/<id>).  `jollyrating discover --write` can
+# append them for you.
+#
+# [[contests]]
+# id = 123456
+#
+# [[contests]]
+# id = 123457
+# title = "Week 2"          # optional: override the vjudge title
+# season = "Season 1"       # optional: override the season chosen by date
+# penalty_minutes = 20      # optional: per-contest penalty
+# skip = true               # optional: ignore this contest
+#
+# IOI-style (or off-vjudge) contests come from a file, see README.md:
+# [[contests]]
+# id = "ioi-week-3"
+# mode = "ioi"
+# file = "data/manual/ioi-week-3.json"
+
+# External participations: a user who missed a contest for another training or
+# competition.  The i-th one in a season is worth the user's i(i+1)/2-th best
+# actual performance of that season.
+#
+# [[external]]
+# user = "alice"
+# contest = 123457
+# note = "ICPC Asia Regional"
+
+[users]
+# exclude = ["admin_account"]        # never rate these usernames
+# only = []                           # if non-empty, rate only these usernames
+# aliases = { old_handle = "new_handle" }   # merge two vjudge accounts
+# display_names = { alice = "Alice Tan" }   # override the shown name
