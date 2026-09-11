@@ -37,7 +37,7 @@ def make_client(cfg: Config) -> VJudgeClient:
         log.info("using vjudge cookie from %s", cfg.cookie_env if os.environ.get(cfg.cookie_env) else cookie_file)
     else:
         log.info("no vjudge cookie configured; only public contests can be fetched")
-    return VJudgeClient(cfg.vjudge_base_url, cookie, delay=cfg.request_delay)
+    return VJudgeClient(cfg.vjudge_base_url, cookie, delay=cfg.request_delay, user_agent=cfg.user_agent)
 
 
 def cache_path(cfg: Config, contest: ContestConfig) -> Path:

@@ -113,6 +113,10 @@ class ClientTests(ServerMixin, unittest.TestCase):
         with self.assertRaises(VJudgeError):
             self.client().contest_rank(3)
 
+    def test_custom_user_agent(self):
+        VJudgeClient(self.base, delay=0, retries=1, user_agent="MyBrowser/1.0").contest_rank(1)
+        self.assertEqual(Handler.seen[-1][1]["ua"], "MyBrowser/1.0")
+
     def test_discover(self):
         found = self.client().discover_group_contests("demo")
         self.assertEqual([c.id for c in found], [1, 5, 9])

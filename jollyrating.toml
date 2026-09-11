@@ -12,6 +12,10 @@ timezone = "UTC"
 # sent as the Cookie header.  See README.md ("Private contests").
 cookie_env = "VJUDGE_COOKIE"
 # Or keep it in a file (git-ignored): cookie_file = ".cookie"
+# vjudge is behind Cloudflare.  If your cookie header contains cf_clearance, set
+# this to your browser's exact User-Agent (same devtools request, "User-Agent"
+# header) so the clearance is accepted; it only works from the same network.
+# user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
 request_delay = 1.0
 
 [rating]

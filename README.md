@@ -70,14 +70,23 @@ browser session instead:
 
 1. Log in to vjudge in your browser and open any contest of the group.
 2. Open the developer tools (F12) → *Network* tab, reload, click the first
-   request to `vjudge.net`, and copy the value of the **Cookie** request header.
-   It looks like `JSESSIONlD=ABC...; Jax.Q=yourname|XYZ...` (yes, vjudge's
-   session cookie is spelled with a lowercase L).
+   request to `vjudge.net`, and copy the whole value of the **Cookie** request
+   header. The part that matters is `JSESSIONlD=<user id>|<token>` (spelled
+   with a lowercase L); the other cookies can stay.
 3. Put it in the `VJUDGE_COOKIE` environment variable, or in a git-ignored file
    named by `cookie_file` in the config, e.g. `cookie_file = ".cookie"`.
 
 Cookies expire after a while; when `fetch` starts reporting login pages, copy a
 fresh one. **Never commit the cookie** – it is your vjudge login.
+
+**Cloudflare.** vjudge sits behind Cloudflare. If your cookie header contains
+`cf_clearance`, Cloudflare only accepts it from the same IP address and with
+the same browser `User-Agent` it was issued to: copy the request's
+`User-Agent` header into `[vjudge] user_agent` in the config. From another
+network (for example GitHub Actions) the challenge may block `fetch` with
+"vjudge returned an HTML page instead of JSON"; then run `fetch` on your own
+machine and commit the resulting `data/contests/*.json`, which the workflow's
+`compute` step uses as-is.
 
 **Manual fallback.** If fetching does not work for some contest, open
 `https://vjudge.net/contest/rank/single/<id>` in the logged-in browser, save the

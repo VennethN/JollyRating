@@ -8,9 +8,13 @@ vjudge has no public API.  Two endpoints are used here:
   the contests of a group.
 
 Private (group) contests need the cookies of a logged-in vjudge session.
-Copy the ``Cookie`` request header from your browser's devtools (it contains
-``JSESSIONlD=...`` and ``Jax.Q=<user>|<token>``) into the ``VJUDGE_COOKIE``
-environment variable or the file named by ``cookie_file`` in the config.
+Copy the ``Cookie`` request header from your browser's devtools (the login is
+``JSESSIONlD=<user id>|<token>``, spelled with a lowercase L) into the
+``VJUDGE_COOKIE`` environment variable or the file named by ``cookie_file``.
+vjudge sits behind Cloudflare; when the header carries a ``cf_clearance``
+cookie, requests are only accepted from the same IP address and with the same
+``User-Agent`` the browser used, so set ``user_agent`` in the config to your
+browser's value when fetching from your own machine.
 """
 
 from __future__ import annotations
@@ -79,6 +83,7 @@ class VJudgeClient:
         timeout: float = 30.0,
         retries: int = 3,
         session: requests.Session | None = None,
+        user_agent: str | None = None,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.delay = delay
@@ -87,7 +92,7 @@ class VJudgeClient:
         self.session = session or requests.Session()
         self.session.headers.update(
             {
-                "User-Agent": USER_AGENT,
+                "User-Agent": user_agent or USER_AGENT,
                 "Accept": "application/json, text/html;q=0.9, */*;q=0.8",
                 "Accept-Language": "en-US,en;q=0.9",
                 "X-Requested-With": "XMLHttpRequest",

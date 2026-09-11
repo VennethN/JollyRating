@@ -57,6 +57,7 @@ class Config:
     vjudge_group: str | None = None
     cookie_env: str = "VJUDGE_COOKIE"
     cookie_file: Path | None = None
+    user_agent: str | None = None
     request_delay: float = 1.0
     penalty_minutes: float = 20.0
     include_zero_submission_participants: bool = True
@@ -188,6 +189,8 @@ def parse_config(raw: dict[str, Any], path: Path) -> Config:
     if vj.get("cookie_file"):
         cfg.cookie_file = Path(str(vj["cookie_file"]))
     cfg.request_delay = float(_expect(vj, "request_delay", (int, float), "[vjudge]", cfg.request_delay))
+    if vj.get("user_agent"):
+        cfg.user_agent = str(vj["user_agent"]).strip() or None
 
     rt = raw.get("rating", {}) or {}
     if not isinstance(rt, dict):

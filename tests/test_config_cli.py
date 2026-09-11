@@ -64,6 +64,13 @@ class ConfigTests(unittest.TestCase):
             with self.assertRaises(ConfigError, msg=text):
                 load(text)
 
+    def test_vjudge_section(self):
+        cfg = load('[vjudge]\nbase_url = "http://x/"\nuser_agent = " UA/1 "\ncookie_file = ".cookie"\n')
+        self.assertEqual(cfg.vjudge_base_url, "http://x")
+        self.assertEqual(cfg.user_agent, "UA/1")
+        self.assertEqual(str(cfg.cookie_file), ".cookie")
+        self.assertIsNone(load("").user_agent)
+
     def test_users_and_externals(self):
         cfg = load(
             '[[contests]]\nid = 5\n'
