@@ -219,9 +219,10 @@ vjudge nickname, falling back to the username).
 
 ## Automating with GitHub Actions
 
-`.github/workflows/update-ratings.yml` runs daily (and on demand): it fetches
-new standings, recomputes, commits `data/` and `out/` back to the repository,
-and can publish `out/` to GitHub Pages.
+`.github/workflows/update-ratings.yml` runs daily (and on demand): it
+discovers new group contests (when `[vjudge] group` is set), fetches new
+standings, recomputes, commits `jollyrating.toml`, `data/` and `out/` back to
+the repository, and can publish `out/` to GitHub Pages.
 
 1. Commit your filled-in `jollyrating.toml` (the workflow does nothing while
    there are no `[[contests]]`).

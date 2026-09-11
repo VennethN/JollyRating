@@ -2,7 +2,9 @@
 # results and (optionally) publishes out/ to GitHub Pages.
 #
 # Setup:
-#   1. Fill in jollyrating.toml (at least one [[contests]] entry).
+#   1. Fill in jollyrating.toml (at least one [[contests]] entry).  With
+#      [vjudge] group = "<name>" set, new contests of the group are discovered
+#      and appended to the config on every run.
 #   2. For private group contests add a repository secret VJUDGE_COOKIE
 #      (Settings -> Secrets and variables -> Actions) with your vjudge Cookie
 #      header, see README.md.  The cookie expires; refresh it when fetches fail.
@@ -49,6 +51,17 @@ jobs:
           python-version: "3.12"
       - run: pip install -e .
         if: steps.check.outputs.configured == 'true'
+      - name: Discover new group contests
+        # Only when [vjudge] group = "..." is set; appends unknown contest ids to jollyrating.toml.
+        if: steps.check.outputs.configured == 'true'
+        env:
+          VJUDGE_COOKIE: ${{ secrets.VJUDGE_COOKIE }}
+        run: |
+          if grep -Eq '^\s*group\s*=' jollyrating.toml; then
+            python -m jollyrating discover --write || echo "::warning::discover found no contests (see log)"
+          else
+            echo "no [vjudge] group configured; skipping discovery"
+          fi
       - name: Fetch standings and compute ratings
         if: steps.check.outputs.configured == 'true'
         env:
@@ -59,7 +72,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data out
+          git add jollyrating.toml data out
           if git diff --cached --quiet; then
             echo "no changes"
           else
