@@ -23,6 +23,10 @@ request_delay = 1.0
 penalty_minutes = 20
 # Count users who joined the contest but never submitted as participants (score 0).
 include_zero_submission_participants = true
+# Scoring used unless a contest sets its own mode: "icpc" (number of solved
+# problems, penalty breaks ties) or "ioi" (sum of the per-problem scores vjudge
+# reports, partial scores count, no penalty).
+default_mode = "icpc"
 
 [output]
 data_dir = "data"   # raw vjudge standings are cached in data/contests/<id>.json
@@ -50,6 +54,7 @@ start = 2024-08-01
 # title = "Week 2"          # optional: override the vjudge title
 # season = "Season 1"       # optional: override the season chosen by date
 # penalty_minutes = 20      # optional: per-contest penalty
+# mode = "ioi"              # optional: OI-style scoring for this contest
 # skip = true               # optional: ignore this contest
 #
 # IOI-style (or off-vjudge) contests come from a file, see README.md:

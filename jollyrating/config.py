@@ -27,7 +27,7 @@ class ContestConfig:
     vjudge_id: int | None = None
     title: str | None = None
     season: str | None = None
-    mode: str = "icpc"
+    mode: str | None = None
     file: Path | None = None
     penalty_minutes: float | None = None
     begin: datetime | None = None
@@ -61,6 +61,7 @@ class Config:
     request_delay: float = 1.0
     penalty_minutes: float = 20.0
     include_zero_submission_participants: bool = True
+    default_mode: str = "icpc"
     data_dir: Path = Path("data")
     out_dir: Path = Path("out")
     seasons: list[SeasonConfig] = field(default_factory=list)
@@ -199,6 +200,9 @@ def parse_config(raw: dict[str, Any], path: Path) -> Config:
     cfg.include_zero_submission_participants = bool(
         _expect(rt, "include_zero_submission_participants", (bool,), "[rating]", True)
     )
+    cfg.default_mode = str(rt.get("default_mode", "icpc")).lower()
+    if cfg.default_mode not in ("icpc", "ioi"):
+        raise ConfigError("[rating]: default_mode must be 'icpc' or 'ioi'")
 
     out = raw.get("output", {}) or {}
     if not isinstance(out, dict):
@@ -254,9 +258,10 @@ def parse_config(raw: dict[str, Any], path: Path) -> Config:
             contest.vjudge_id = int(c["vjudge_id"])
         contest.title = str(c["title"]) if c.get("title") else None
         contest.season = str(c["season"]) if c.get("season") else None
-        contest.mode = str(c.get("mode", "icpc")).lower()
-        if contest.mode not in ("icpc", "ioi"):
-            raise ConfigError(f"{what}: mode must be 'icpc' or 'ioi'")
+        if c.get("mode"):
+            contest.mode = str(c["mode"]).lower()
+            if contest.mode not in ("icpc", "ioi"):
+                raise ConfigError(f"{what}: mode must be 'icpc' or 'ioi'")
         if c.get("file"):
             contest.file = Path(str(c["file"]))
         if "penalty_minutes" in c:
@@ -267,8 +272,6 @@ def parse_config(raw: dict[str, Any], path: Path) -> Config:
         contest.note = str(c.get("note", ""))
         if contest.file is None and contest.vjudge_id is None:
             raise ConfigError(f"{what}: contest {contest.id!r} is not a vjudge id; give it a file = ... with its standings")
-        if contest.mode == "ioi" and contest.file is None:
-            raise ConfigError(f"{what}: IOI-style contests need a file = ... with the scores (vjudge only exposes ICPC data)")
         cfg.contests.append(contest)
 
     # External participations --------------------------------------------

@@ -134,6 +134,10 @@ id = 654400
 title = "Mock ICPC"             # optional overrides: title, season, penalty_minutes, begin, skip
 
 [[contests]]
+id = 654500
+mode = "ioi"                    # OI-style vjudge contest: sum of per-problem scores
+
+[[contests]]
 id = "ioi-week-3"               # non-vjudge or IOI-style contest from a file
 mode = "ioi"
 file = "data/manual/ioi-week-3.json"
@@ -169,8 +173,12 @@ specific contest.
 
 ### IOI-style and off-platform contests
 
-vjudge's standings feed only carries accepted/rejected submissions, so
-IOI-style scores (and contests held elsewhere) come from a file:
+Contests are scored ICPC-style unless told otherwise (`[rating] default_mode`).
+For a vjudge contest that was run OI-style, set `mode = "ioi"` on its
+`[[contests]]` entry: the score is then the sum, over problems, of the best
+score of any submission as reported by vjudge (partial scores count, there is
+no penalty). `validate` points out cached contests that carry per-problem
+scores. Contests held elsewhere come from a file:
 
 ```json
 {

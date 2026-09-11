@@ -99,26 +99,42 @@ class _ProblemState:
     ac_time: float | None = None
     wrong: int = 0
     attempts: int = 0
+    best: float = 0.0
 
 
 def _participant_names(pid: str, info: Any) -> tuple[str, str]:
-    """vjudge lists participants as ``id -> [username, nickname, avatar]``."""
-    if isinstance(info, (list, tuple)):
+    """vjudge lists participants as ``{"name": username, "nickname": ...}`` (older
+    payloads: ``[username, nickname, avatar]``)."""
+    if isinstance(info, dict):
+        username = str(info.get("name") or info.get("username") or f"uid:{pid}")
+        nickname = str(info.get("nickname") or info.get("nick") or "")
+    elif isinstance(info, (list, tuple)):
         username = str(info[0]) if info and info[0] else f"uid:{pid}"
         nickname = str(info[1]) if len(info) > 1 and info[1] else ""
-    elif isinstance(info, dict):
-        username = str(info.get("username") or info.get("name") or f"uid:{pid}")
-        nickname = str(info.get("nickname") or info.get("nick") or "")
     else:
         username = str(info) if info else f"uid:{pid}"
         nickname = ""
     return username, nickname or username
 
 
+def _score_column(sub: Any, index: int) -> float | None:
+    try:
+        value = sub[index]
+    except (IndexError, TypeError):
+        return None
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def from_vjudge_rank(
     data: dict[str, Any],
     contest_id: str,
     *,
+    mode: str = "icpc",
     penalty_seconds: float = DEFAULT_PENALTY_SECONDS,
     include_zero_submission_participants: bool = True,
     users: UserFilter | None = None,
@@ -126,20 +142,29 @@ def from_vjudge_rank(
     begin: datetime | None = None,
     url: str | None = None,
 ) -> ContestStandings:
-    """Build ICPC-style standings from ``/contest/rank/single/<id>`` JSON.
+    """Build standings from ``/contest/rank/single/<id>`` JSON.
 
     The payload looks like::
 
-        {"id": 123, "title": "...", "begin": <ms epoch>, "length": <ms>,
-         "participants": {"<uid>": ["username", "nickname", "avatar"], ...},
-         "submissions": [[<uid>, <problem index>, <1 if accepted else 0>, <seconds since start>], ...]}
+        {"id": 123, "title": "...", "begin": <ms epoch>, "length": <ms>, "isReplay": false,
+         "participants": {"<uid>": {"type": "user", "name": "username", "nickname": "Nick", ...}, ...},
+         "submissions": [[<uid>, <problem index>, <1 if accepted else 0>, <seconds since start>,
+                          <score>, <full score>], ...]}
 
-    Scoring follows the standard ICPC rules used by vjudge: the score is the
-    number of solved problems and the penalty is, over solved problems, the
-    time of the first accepted submission plus ``penalty_seconds`` for every
-    rejected submission before it.  Submissions outside the contest window
-    and submissions after a problem was solved are ignored.
+    The two score columns are optional (older payloads and some judges omit
+    them) and participants may also be ``[username, nickname, avatar]`` lists.
+
+    ``mode="icpc"``: the score is the number of solved problems and the
+    penalty is, over solved problems, the time of the first accepted
+    submission plus ``penalty_seconds`` for every rejected submission before
+    it.  ``mode="ioi"``: the score is the sum over problems of the best score
+    of any submission (partial scores count, the penalty is 0); an accepted
+    submission without a score column counts as the problem's full score.
+    Submissions outside the contest window are ignored in both modes.
     """
+    mode = mode.lower()
+    if mode not in ("icpc", "ioi"):
+        raise StandingsError(f"contest {contest_id}: mode must be 'icpc' or 'ioi', got {mode!r}")
     if not isinstance(data, dict) or "participants" not in data or "submissions" not in data:
         raise StandingsError(f"contest {contest_id}: payload has no participants/submissions (not a rank JSON?)")
 
@@ -160,8 +185,24 @@ def from_vjudge_rank(
     for pid, info in participants.items():
         names[str(pid)] = _participant_names(str(pid), info)
 
+    # Full score per problem, from any submission that carries the score columns
+    # (also post-contest ones: they still document the problem's full score).
+    problem_full: dict[int, float] = {}
+    best_seen: dict[int, float] = {}
+    for sub in submissions:
+        try:
+            prob = int(sub[1])
+        except (TypeError, ValueError, IndexError):
+            continue
+        full = _score_column(sub, 5)
+        if full is not None and full > 0:
+            problem_full[prob] = max(problem_full.get(prob, 0.0), full)
+        got = _score_column(sub, 4)
+        if got is not None:
+            best_seen[prob] = max(best_seen.get(prob, 0.0), got)
+
     state: dict[str, dict[int, _ProblemState]] = {pid: {} for pid in names}
-    valid: list[tuple[float, int, str, int, bool]] = []
+    valid: list[tuple[float, int, str, int, bool, float | None]] = []
     skipped = 0
     for order, sub in enumerate(submissions):
         try:
@@ -174,24 +215,47 @@ def from_vjudge_rank(
             continue
         if t < 0 or (length_s is not None and t > length_s):
             continue  # practice submissions after the contest (or clock glitches)
-        valid.append((t, order, pid, prob, accepted))
+        valid.append((t, order, pid, prob, accepted, _score_column(sub, 4)))
     if skipped:
         log.warning("contest %s: skipped %d malformed submissions", contest_id, skipped)
 
+    guessed_full: set[int] = set()
     valid.sort()
-    for t, _order, pid, prob, accepted in valid:
+    for t, _order, pid, prob, accepted, score in valid:
         if pid not in names:
             log.warning("contest %s: submission by unknown participant %s; adding as uid:%s", contest_id, pid, pid)
             names[pid] = (f"uid:{pid}", f"uid:{pid}")
             state[pid] = {}
         ps = state[pid].setdefault(prob, _ProblemState())
-        if ps.ac_time is not None:
+        if mode == "icpc":
+            if ps.ac_time is not None:
+                continue
+            ps.attempts += 1
+            if accepted:
+                ps.ac_time = t
+            else:
+                ps.wrong += 1
             continue
         ps.attempts += 1
-        if accepted:
+        if score is None:
+            if accepted:
+                if prob in problem_full:
+                    score = problem_full[prob]
+                else:
+                    score = best_seen.get(prob) or 100.0
+                    guessed_full.add(prob)
+            else:
+                score = 0.0
+        ps.best = max(ps.best, score)
+        if accepted and ps.ac_time is None:
             ps.ac_time = t
-        else:
-            ps.wrong += 1
+    if guessed_full:
+        log.warning(
+            "contest %s: accepted submissions without a score for problem(s) %s and no full score known; "
+            "counted as %s",
+            contest_id, ", ".join(problem_label(p) for p in sorted(guessed_full)),
+            "the best score seen (or 100)",
+        )
 
     problems = 0
     entries: list[Entry] = []
@@ -199,21 +263,30 @@ def from_vjudge_rank(
         solved: list[str] = []
         penalty = 0.0
         attempts = 0
+        total = 0.0
         for prob, ps in sorted(state[pid].items()):
             problems = max(problems, prob + 1)
             attempts += ps.attempts
-            if ps.ac_time is not None:
-                solved.append(problem_label(prob))
-                penalty += ps.ac_time + penalty_seconds * ps.wrong
+            if mode == "icpc":
+                if ps.ac_time is not None:
+                    solved.append(problem_label(prob))
+                    penalty += ps.ac_time + penalty_seconds * ps.wrong
+            else:
+                total += ps.best
+                if ps.ac_time is not None or (prob in problem_full and ps.best >= problem_full[prob]):
+                    solved.append(problem_label(prob))
         if attempts == 0 and not include_zero_submission_participants:
             continue
-        entries.append(Entry(username, nickname, float(len(solved)), penalty, solved, attempts))
+        if mode == "icpc":
+            entries.append(Entry(username, nickname, float(len(solved)), penalty, solved, attempts))
+        else:
+            entries.append(Entry(username, nickname, total, 0.0, solved, attempts))
 
     return ContestStandings(
         id=str(contest_id),
         title=title,
         begin=begin,
-        mode="icpc",
+        mode=mode,
         entries=_finalize(entries, users),
         length_seconds=length_s,
         problems=problems or None,

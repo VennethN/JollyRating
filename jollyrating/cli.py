@@ -61,7 +61,7 @@ def load_standings(cfg: Config, contest: ContestConfig, users: UserFilter) -> Co
     penalty = (contest.penalty_minutes if contest.penalty_minutes is not None else cfg.penalty_minutes) * 60
     if contest.file is not None:
         return from_manual_file(
-            cfg.resolve(contest.file), contest.id, mode=contest.mode, title=contest.title,
+            cfg.resolve(contest.file), contest.id, mode=contest.mode or "ioi", title=contest.title,
             begin=contest.begin, users=users, url=contest_url(cfg, contest),
         )
     path = cache_path(cfg, contest)
@@ -73,7 +73,7 @@ def load_standings(cfg: Config, contest: ContestConfig, users: UserFilter) -> Co
     with path.open(encoding="utf-8") as fh:
         data = json.load(fh)
     return from_vjudge_rank(
-        data, contest.id, penalty_seconds=penalty,
+        data, contest.id, mode=contest.mode or cfg.default_mode, penalty_seconds=penalty,
         include_zero_submission_participants=cfg.include_zero_submission_participants,
         users=users, title=contest.title, begin=contest.begin, url=contest_url(cfg, contest),
     )
@@ -137,6 +137,18 @@ def print_leaderboard(ratings: list[UserRating], limit: int = 25) -> None:
 # --------------------------------------------------------------------------- #
 
 
+def cache_summary(path: Path, mode: str) -> str:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return "cached (unreadable JSON)"
+    subs = data.get("submissions") or []
+    summary = f"cached: {data.get('title', '')!s} – {len(data.get('participants') or {})} participants, {len(subs)} submissions"
+    if mode == "icpc" and any(isinstance(sub, list) and len(sub) > 5 for sub in subs):
+        summary += ' (per-problem scores present; use mode = "ioi" if this contest was OI-style)'
+    return summary
+
+
 def cmd_validate(cfg: Config, args: argparse.Namespace) -> int:
     print(f"config: {cfg.path}")
     print(f"title: {cfg.title}   timezone: {cfg.timezone.key}")
@@ -149,16 +161,19 @@ def cmd_validate(cfg: Config, args: argparse.Namespace) -> int:
     print(f"contests ({len(cfg.contests)}):")
     problems = 0
     for c in cfg.contests:
+        mode = c.mode or ("ioi" if c.file is not None else cfg.default_mode)
         if c.file is not None:
             path = cfg.resolve(c.file)
             status = "ok" if path.exists() else "MISSING FILE"
+        elif cache_path(cfg, c).exists():
+            status = cache_summary(cache_path(cfg, c), mode)
         else:
-            status = "cached" if cache_path(cfg, c).exists() else "not fetched"
+            status = "not fetched"
         if c.skip:
             status = "skipped"
         if status.startswith(("MISSING", "not")):
             problems += 1
-        print(f"  - {c.id}: {c.title or ''} [{c.mode}] {status}")
+        print(f"  - {c.id}: {c.title or ''} [{mode}] {status}")
     print(f"external participations: {len(cfg.externals)}")
     if problems:
         print(f"{problems} contest(s) have no data yet; run `jollyrating fetch`")

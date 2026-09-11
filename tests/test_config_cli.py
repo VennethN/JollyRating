@@ -52,7 +52,6 @@ class ConfigTests(unittest.TestCase):
     def test_validation_errors(self):
         bad = [
             '[[contests]]\nid = "week-1"\n',  # non-numeric id without file
-            '[[contests]]\nid = 1\nmode = "ioi"\n',  # ioi needs a file
             '[[contests]]\nid = 1\n[[contests]]\nid = 1\n',  # duplicate
             '[[seasons]]\nname = "S1"\n[[seasons]]\nname = "S2"\n',  # second season without start
             '[[seasons]]\nname = "S2"\nstart = 2025-01-01\n[[seasons]]\nname = "S1"\nstart = 2024-01-01\n',
@@ -63,6 +62,16 @@ class ConfigTests(unittest.TestCase):
         for text in bad:
             with self.assertRaises(ConfigError, msg=text):
                 load(text)
+
+    def test_modes(self):
+        cfg = load('[rating]\ndefault_mode = "ioi"\n[[contests]]\nid = 1\n[[contests]]\nid = 2\nmode = "icpc"\n')
+        self.assertEqual(cfg.default_mode, "ioi")
+        self.assertIsNone(cfg.contests[0].mode)
+        self.assertEqual(cfg.contests[1].mode, "icpc")
+        with self.assertRaises(ConfigError):
+            load('[rating]\ndefault_mode = "oi"\n')
+        with self.assertRaises(ConfigError):
+            load('[[contests]]\nid = 1\nmode = "oi"\n')
 
     def test_vjudge_section(self):
         cfg = load('[vjudge]\nbase_url = "http://x/"\nuser_agent = " UA/1 "\ncookie_file = ".cookie"\n')

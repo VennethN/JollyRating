@@ -58,6 +58,38 @@ class VJudgeParserTests(unittest.TestCase):
         self.assertEqual([e.rank for e in st.entries], [1, 2, 2, 4])
         self.assertEqual([e.user for e in st.entries], ["alice", "bob", "carol", "dave"])
 
+    def test_real_format_with_score_columns(self):
+        participants = {
+            "1": {"type": "user", "name": "alice", "nickname": "Alice", "image": "", "members": []},
+            "2": {"type": "user", "name": "bob", "nickname": "", "image": "", "members": []},
+            "3": {"type": "user", "name": "carol", "nickname": "Carol", "image": "", "members": []},
+        }
+        subs = [
+            [1, 0, 0, 100, 10.0, 35.0],  # alice A: partial 10/35
+            [1, 0, 1, 200, 35.0, 35.0],  # alice A: full score
+            [1, 1, 0, 300, 20.0, 63.0],  # alice B: partial 20/63
+            [1, 1, 0, 400, 5.0, 63.0],  # alice B: a worse later try does not lower the best
+            [2, 0, 1, 150],  # bob A: accepted without score columns -> full score (35) inferred
+            [2, 1, 1, 900000, 63.0, 63.0],  # bob B: after the contest, ignored (but documents B's full score)
+            [3, 2, 0, 50],  # carol C: rejected without score -> 0
+        ]
+        ioi = from_vjudge_rank(payload(subs, participants), "111", mode="ioi")
+        self.assertEqual(ioi.mode, "ioi")
+        by = {e.user: e for e in ioi.entries}
+        self.assertEqual(by["alice"].display, "Alice")
+        self.assertEqual(by["bob"].display, "bob")
+        self.assertEqual((by["alice"].score, by["alice"].penalty, by["alice"].solved), (55.0, 0.0, ["A"]))
+        self.assertEqual((by["bob"].score, by["bob"].solved), (35.0, ["A"]))
+        self.assertEqual((by["carol"].score, by["carol"].attempts), (0.0, 1))
+        self.assertEqual([(e.user, e.rank) for e in ioi.entries], [("alice", 1), ("bob", 2), ("carol", 3)])
+        self.assertEqual(ioi.max_score, 55.0)
+
+        icpc = from_vjudge_rank(payload(subs, participants), "111")
+        by = {e.user: e for e in icpc.entries}
+        self.assertEqual((by["alice"].score, by["alice"].penalty), (1.0, 200 + 1200))
+        self.assertEqual((by["bob"].score, by["bob"].penalty), (1.0, 150))
+        self.assertEqual([(e.user, e.rank) for e in icpc.entries], [("bob", 1), ("alice", 2), ("carol", 3)])
+
     def test_zero_submission_participants_can_be_dropped(self):
         st = from_vjudge_rank(payload([[1, 0, 1, 10]]), "111", include_zero_submission_participants=False)
         self.assertEqual([e.user for e in st.entries], ["alice"])
