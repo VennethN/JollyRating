@@ -58,6 +58,15 @@ start = 2024-08-01
 # mode = "ioi"
 # file = "data/manual/ioi-week-3.json"
 
+[[contests]]
+id = 834297
+
+[[contests]]
+id = 836653
+
+[[contests]]
+id = 843191
+
 # External participations: a user who missed a contest for another training or
 # competition.  The i-th one in a season is worth the user's i(i+1)/2-th best
 # actual performance of that season.
