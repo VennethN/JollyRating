@@ -235,6 +235,31 @@ the repository, and can publish `out/` to GitHub Pages.
 Because raw standings are committed under `data/contests/`, ratings stay
 reproducible and `compute` keeps working even when vjudge is unreachable.
 
+### Running the update from your computer
+
+vjudge sits behind a Cloudflare bot challenge, which GitHub's servers cannot
+pass (the workflow log then says "blocked by Cloudflare's bot challenge"). A
+machine where you are logged in to vjudge in a browser can, so the fetch runs
+there and GitHub only publishes:
+
+1. Clone the repository, `pip install -e .`, and put your browser's Cookie
+   header in a file named `.cookie` (git-ignored).
+2. In `jollyrating.toml` set `cookie_file = ".cookie"`, `user_agent` to your
+   browser's User-Agent string, and `group` to the group name.
+3. Run `./scripts/update.sh`. It discovers new contests, fetches their
+   standings, recomputes, commits and pushes; the push triggers the workflow,
+   which publishes the page.
+
+To make it automatic, schedule that script. With cron (Linux/macOS):
+
+```
+0 22 * * * cd /path/to/JollyRating && ./scripts/update.sh >> update.log 2>&1
+```
+
+The cookie expires every few weeks; when the log shows login errors, copy a
+fresh one into `.cookie`. Contests that are still running are fetched again on
+the next run, so a contest is final in the ratings one run after it ends.
+
 ## How the rating works
 
 For a user *u* and contest *c*:
