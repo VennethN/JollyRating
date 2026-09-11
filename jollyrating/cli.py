@@ -241,7 +241,13 @@ def cmd_fetch(cfg: Config, args: argparse.Namespace) -> int:
                  contest.id, data.get("title"), len(data.get("participants") or {}), len(data.get("submissions") or []), begin.date(), running)
         fetched += 1
     print(f"fetched {fetched}, cached {skipped}, failed {failed}")
-    if failed:
+    if failed and client.authenticated:
+        print(
+            "some contests could not be fetched although a cookie was set: it may have expired, or Cloudflare "
+            "blocked this network. Fetch from the machine where the cookie was copied, or save "
+            f"{cfg.vjudge_base_url}/contest/rank/single/<id> from your browser to {cfg.contests_dir}/<id>.json"
+        )
+    elif failed:
         print("some contests could not be fetched; for private contests set VJUDGE_COOKIE (see README)")
     return 1 if failed and not fetched and not skipped else 0
 

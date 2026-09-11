@@ -34,8 +34,14 @@ log = logging.getLogger(__name__)
 
 DEFAULT_BASE_URL = "https://vjudge.net"
 USER_AGENT = (
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/124.0.0.0 Safari/537.36 JollyRating/0.1 (+https://github.com/VennethN/JollyRating)"
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/140.0.0.0 Safari/537.36"
+)
+CLOUDFLARE_HINT = (
+    "vjudge sits behind Cloudflare, whose cf_clearance cookie is only accepted from the same IP address "
+    "and User-Agent as the browser it was issued to. Run this on the machine where you copied the cookie "
+    "with [vjudge] user_agent set to your browser's User-Agent, or open the URL in your browser and save "
+    "the JSON to data/contests/<id>.json"
 )
 
 
@@ -135,6 +141,17 @@ class VJudgeClient:
         raise VJudgeError(f"GET {url} failed after {self.retries} attempts: {last_exc}")
 
     @staticmethod
+    def _cloudflare_challenge(resp: requests.Response) -> bool:
+        if resp.headers.get("cf-mitigated", "").lower() == "challenge":
+            return True
+        if resp.status_code not in (403, 503):
+            return False
+        body = resp.text[:5000].lower()
+        return "cloudflare" in body and any(
+            marker in body for marker in ("just a moment", "cf-chl", "challenge-platform", "attention required")
+        )
+
+    @staticmethod
     def _looks_like_html(resp: requests.Response) -> bool:
         ctype = resp.headers.get("Content-Type", "")
         body = resp.text.lstrip()[:200].lower()
@@ -142,7 +159,17 @@ class VJudgeClient:
 
     def get_json(self, path: str, params: dict[str, Any] | None = None, **kw: Any) -> Any:
         resp = self._get(path, params, **kw)
+        if self._cloudflare_challenge(resp):
+            raise VJudgeAuthError(
+                f"{resp.url}: blocked by Cloudflare's bot challenge (HTTP {resp.status_code}), not a vjudge login problem. "
+                + CLOUDFLARE_HINT
+            )
         if resp.status_code in (401, 403):
+            if self.authenticated:
+                raise VJudgeAuthError(
+                    f"{resp.url}: HTTP {resp.status_code} – the cookie was rejected. Either it expired or the account "
+                    f"is not a member of the group, or the request was blocked by Cloudflare: {CLOUDFLARE_HINT}"
+                )
             raise VJudgeAuthError(f"{resp.url}: HTTP {resp.status_code} – log in (set the cookie) or check group membership")
         if resp.status_code == 404:
             raise VJudgeError(f"{resp.url}: HTTP 404 – no such contest/group")

@@ -63,6 +63,17 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, LOGIN_HTML, "text/html; charset=utf-8")
         if url.path == "/contest/rank/single/3":
             return self._send(404, {"error": "not found"})
+        if url.path == "/contest/rank/single/6":
+            self.send_response(403)
+            self.send_header("Content-Type", "text/html")
+            self.send_header("cf-mitigated", "challenge")
+            body = b"<!DOCTYPE html><html><head><title>Just a moment...</title></head><body>cloudflare</body></html>"
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return None
+        if url.path == "/contest/rank/single/7":
+            return self._send(403, {"error": "forbidden"})
         if url.path == "/group/demo":
             return self._send(200, GROUP_HTML, "text/html")
         if url.path == "/contest/data":
@@ -112,6 +123,18 @@ class ClientTests(ServerMixin, unittest.TestCase):
     def test_missing_contest(self):
         with self.assertRaises(VJudgeError):
             self.client().contest_rank(3)
+
+    def test_cloudflare_challenge_is_explained(self):
+        with self.assertRaises(VJudgeAuthError) as ctx:
+            self.client("JSESSIONlD=1|x").contest_rank(6)
+        self.assertIn("Cloudflare", str(ctx.exception))
+        self.assertIn("user_agent", str(ctx.exception))
+
+    def test_plain_403_with_cookie_mentions_both_causes(self):
+        with self.assertRaises(VJudgeAuthError) as ctx:
+            self.client("JSESSIONlD=1|x").contest_rank(7)
+        self.assertIn("cookie was rejected", str(ctx.exception))
+        self.assertIn("Cloudflare", str(ctx.exception))
 
     def test_custom_user_agent(self):
         VJudgeClient(self.base, delay=0, retries=1, user_agent="MyBrowser/1.0").contest_rank(1)
