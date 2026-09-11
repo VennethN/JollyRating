@@ -1,6 +1,6 @@
 {
   "title": "JollyBee Rating",
-  "generated_at": "2026-09-11T09:07:36.361590+00:00",
+  "generated_at": "2026-09-11T09:08:30.110243+00:00",
   "seasons": [
     "Season 1"
   ],
@@ -263,7 +263,7 @@
       "rank": 3,
       "user": "Thomatomb",
       "display": "Frederick Kamsono",
-      "rating": 884.8705311601863,
+      "rating": 884.8705311601864,
       "contests": 3,
       "best_perf": 3984.5559845559847,
       "seasons": [
@@ -271,8 +271,8 @@
           "season": "Season 1",
           "previous": 0.0,
           "base": 0.0,
-          "rating": 884.8705311601863,
-          "gained": 884.8705311601863,
+          "rating": 884.8705311601864,
+          "gained": 884.8705311601864,
           "actual": [
             {
               "contest_id": "834297",
@@ -360,10 +360,10 @@
         {
           "at": "2026-08-21T03:00:00+00:00",
           "season": "Season 1",
-          "rating": 884.8705311601863,
+          "rating": 884.8705311601864,
           "label": "Kontes Individu Terakhir",
           "contest_id": "843191",
-          "delta": 236.97903526869038
+          "delta": 236.9790352686905
         }
       ]
     },
@@ -371,7 +371,7 @@
       "rank": 4,
       "user": "1145142",
       "display": "Kevin Sadikin",
-      "rating": 794.941731348628,
+      "rating": 794.9417313486279,
       "contests": 3,
       "best_perf": 3922.779922779923,
       "seasons": [
@@ -379,8 +379,8 @@
           "season": "Season 1",
           "previous": 0.0,
           "base": 0.0,
-          "rating": 794.941731348628,
-          "gained": 794.941731348628,
+          "rating": 794.9417313486279,
+          "gained": 794.9417313486279,
           "actual": [
             {
               "contest_id": "834297",
@@ -468,10 +468,10 @@
         {
           "at": "2026-08-21T03:00:00+00:00",
           "season": "Season 1",
-          "rating": 794.941731348628,
+          "rating": 794.9417313486279,
           "label": "Kontes Individu Terakhir",
           "contest_id": "843191",
-          "delta": 238.32185872875527
+          "delta": 238.32185872875516
         }
       ]
     },
