@@ -256,6 +256,13 @@ To make it automatic, schedule that script. With cron (Linux/macOS):
 0 22 * * * cd /path/to/JollyRating && ./scripts/update.sh >> update.log 2>&1
 ```
 
+Alternatively keep everything inside GitHub Actions by running the workflow's
+update job on your own machine: install a self-hosted runner (Settings →
+Actions → Runners → New self-hosted runner, follow the commands shown), add
+the repository variable `UPDATE_RUNNER` = `self-hosted`, and keep the
+`VJUDGE_COOKIE` secret and the `user_agent` config as above. The scheduled
+and manual runs then fetch from your network while GitHub still publishes.
+
 The cookie expires every few weeks; when the log shows login errors, copy a
 fresh one into `.cookie`. Contests that are still running are fetched again on
 the next run, so a contest is final in the ratings one run after it ends.
